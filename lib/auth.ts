@@ -3,7 +3,9 @@ import { scryptSync, timingSafeEqual } from "node:crypto";
 
 function verifyPassword(input: string, stored: string) {
   if (stored.startsWith("scrypt:")) {
-    const [algorithm, salt, hash] = stored.split(":");
+    const parts = stored.split(":");
+    if (parts.length !== 3) return false;
+    const [algorithm, salt, hash] = parts;
     if (algorithm !== "scrypt") return false;
     if (!salt || !hash) return false;
     const hashedInput = scryptSync(input, salt, 64).toString("hex");

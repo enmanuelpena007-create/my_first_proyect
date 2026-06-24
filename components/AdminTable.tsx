@@ -23,7 +23,7 @@ export default function AdminTable<T extends Record<string, unknown>>({
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={getRowKey?.(row, index) ?? JSON.stringify(row)} className="border-b last:border-0">
+            <tr key={getRowKey?.(row, index) ?? index} className="border-b last:border-0">
               {columns.map((column) => (
                 <td key={String(column.key)} className="px-4 py-3">
                   {String(row[column.key] ?? "")}

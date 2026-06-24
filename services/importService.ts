@@ -1,20 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/utils";
+import { parse } from "csv-parse/sync";
 
 function parseCSV(content: string) {
-  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (lines.length < 2) return [];
-
-  const [headers, ...rows] = lines;
-  const keys = headers.split(",").map((key) => key.trim().toLowerCase());
-
-  return rows.map((row) => {
-    const values = row.split(",").map((value) => value.trim());
-    return keys.reduce<Record<string, string>>((acc, key, index) => {
-      acc[key] = values[index] ?? "";
-      return acc;
-    }, {});
-  });
+  return parse(content, {
+    columns: (headers: string[]) => headers.map((header) => header.trim().toLowerCase()),
+    skip_empty_lines: true,
+    trim: true,
+  }) as Record<string, string>[];
 }
 
 export async function importProductsFromCSV(content: string) {
@@ -31,12 +24,6 @@ export async function importProductsFromCSV(content: string) {
       categoryMap.set(categoryName, createdCategory);
     }
   }
-
-  const skuValues = [...new Set(rows.map((row) => row.sku).filter(Boolean))];
-  const existingProducts = skuValues.length
-    ? await prisma.product.findMany({ where: { sku: { in: skuValues } }, select: { sku: true } })
-    : [];
-  const existingSkuSet = new Set(existingProducts.map((product) => product.sku).filter(Boolean));
 
   const BATCH_SIZE = 50;
 
@@ -61,12 +48,25 @@ export async function importProductsFromCSV(content: string) {
         };
 
         if (sku) {
-          await prisma.product.upsert({
+          const updateResult = await prisma.product.updateMany({
             where: { sku },
-            update: data,
-            create: data,
+            data,
           });
-          return existingSkuSet.has(sku) ? { created: 0, updated: 1 } : { created: 1, updated: 0 };
+
+          if (updateResult.count > 0) {
+            return { created: 0, updated: 1 };
+          }
+
+          try {
+            await prisma.product.create({ data });
+            return { created: 1, updated: 0 };
+          } catch {
+            await prisma.product.update({
+              where: { sku },
+              data,
+            });
+            return { created: 0, updated: 1 };
+          }
         }
 
         await prisma.product.create({ data });

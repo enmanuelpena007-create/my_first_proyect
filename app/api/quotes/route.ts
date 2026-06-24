@@ -7,7 +7,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "phone e items son requeridos" }, { status: 400 });
   }
 
-  const quote = await createQuote(body.phone, body.items ?? []);
-  const message = buildWhatsAppMessage(body.items ?? []);
+  const quote = await createQuote(body.phone, body.items);
+  const message = buildWhatsAppMessage(body.items);
   return NextResponse.json({ quote, whatsappMessage: message }, { status: 201 });
 }
