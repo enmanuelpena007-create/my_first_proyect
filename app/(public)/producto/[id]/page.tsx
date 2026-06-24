@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { formatPrice } from "@/lib/utils";
 import { getProductById } from "@/services/productService";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import AdminTable from "@/components/AdminTable";
 import { prisma } from "@/lib/prisma";
 
