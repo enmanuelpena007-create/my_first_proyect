@@ -16,9 +16,14 @@ export async function createQuote(phone: string, items: QuoteItem[]) {
 export function buildWhatsAppMessage(items: QuoteItem[]) {
   const header = "Hola, estoy interesado en:";
 
-  const lines = items.map(
-    (item) =>
-      `\nProducto: ${item.name}\nCódigo: ${item.sku ?? "N/A"}\nPrecio: ${formatPrice(item.price)}\n\n¿Está disponible?`
+  const lines = items.map((item) =>
+    [
+      `Producto: ${item.name}`,
+      `Código: ${item.sku ?? "N/A"}`,
+      `Precio: ${formatPrice(item.price)}`,
+      "",
+      "¿Está disponible?",
+    ].join("\n")
   );
 
   return [header, ...lines].join("\n\n");
