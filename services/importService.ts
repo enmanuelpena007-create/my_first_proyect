@@ -38,33 +38,45 @@ export async function importProductsFromCSV(content: string) {
     : [];
   const existingSkuSet = new Set(existingProducts.map((product) => product.sku).filter(Boolean));
 
-  for (const row of rows) {
-    const name = row.nombre || row.name;
-    const categoryName = row.categoria || row.category;
-    if (!name || !categoryName) continue;
+  const BATCH_SIZE = 50;
 
-    const category = categoryMap.get(categoryName);
-    if (!category) continue;
+  for (let index = 0; index < rows.length; index += BATCH_SIZE) {
+    const chunk = rows.slice(index, index + BATCH_SIZE);
+    const results = await Promise.all(
+      chunk.map(async (row) => {
+        const name = row.nombre || row.name;
+        const categoryName = row.categoria || row.category;
+        if (!name || !categoryName) return { created: 0, updated: 0 };
 
-    const sku = row.sku || null;
-    const data = {
-      name,
-      price: toNumber(row.precio || row.price),
-      sku,
-      categoryId: category.id,
-      stock: toNumber(row.stock, 0),
-    };
-    if (sku) {
-      await prisma.product.upsert({
-        where: { sku },
-        update: data,
-        create: data,
-      });
-      if (existingSkuSet.has(sku)) updated += 1;
-      else created += 1;
-    } else {
-      await prisma.product.create({ data });
-      created += 1;
+        const category = categoryMap.get(categoryName);
+        if (!category) return { created: 0, updated: 0 };
+
+        const sku = row.sku || null;
+        const data = {
+          name,
+          price: toNumber(row.precio || row.price),
+          sku,
+          categoryId: category.id,
+          stock: toNumber(row.stock, 0),
+        };
+
+        if (sku) {
+          await prisma.product.upsert({
+            where: { sku },
+            update: data,
+            create: data,
+          });
+          return existingSkuSet.has(sku) ? { created: 0, updated: 1 } : { created: 1, updated: 0 };
+        }
+
+        await prisma.product.create({ data });
+        return { created: 1, updated: 0 };
+      })
+    );
+
+    for (const result of results) {
+      created += result.created;
+      updated += result.updated;
     }
   }
 
