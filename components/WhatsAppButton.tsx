@@ -1,3 +1,5 @@
+import { formatPrice } from "@/lib/utils";
+
 type ProductLike = {
   name: string;
   sku: string | null;
@@ -5,7 +7,7 @@ type ProductLike = {
 };
 
 export default function WhatsAppButton({ product }: { product: ProductLike }) {
-  const message = `Hola, estoy interesado en:\n\nProducto: ${product.name}\nCódigo: ${product.sku ?? "N/A"}\nPrecio: ${product.price}\n\n¿Está disponible?`;
+  const message = `Hola, estoy interesado en:\n\nProducto: ${product.name}\nCódigo: ${product.sku ?? "N/A"}\nPrecio: ${formatPrice(product.price)}\n\n¿Está disponible?`;
   const href = `https://wa.me/?text=${encodeURIComponent(message)}`;
 
   return (

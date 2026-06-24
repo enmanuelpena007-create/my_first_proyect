@@ -21,16 +21,30 @@ export async function importProductsFromCSV(content: string) {
   const rows = parseCSV(content);
   let created = 0;
   let updated = 0;
+  const categoryNames = [...new Set(rows.map((row) => row.categoria || row.category).filter(Boolean))];
+  const categories = await prisma.category.findMany({ where: { name: { in: categoryNames } } });
+  const categoryMap = new Map(categories.map((category) => [category.name, category]));
+
+  for (const categoryName of categoryNames) {
+    if (!categoryMap.has(categoryName)) {
+      const createdCategory = await prisma.category.create({ data: { name: categoryName } });
+      categoryMap.set(categoryName, createdCategory);
+    }
+  }
+
+  const skuValues = [...new Set(rows.map((row) => row.sku).filter(Boolean))];
+  const existingProducts = skuValues.length
+    ? await prisma.product.findMany({ where: { sku: { in: skuValues } }, select: { sku: true } })
+    : [];
+  const existingSkuSet = new Set(existingProducts.map((product) => product.sku).filter(Boolean));
 
   for (const row of rows) {
     const name = row.nombre || row.name;
     const categoryName = row.categoria || row.category;
     if (!name || !categoryName) continue;
 
-    let category = await prisma.category.findFirst({ where: { name: categoryName } });
-    if (!category) {
-      category = await prisma.category.create({ data: { name: categoryName } });
-    }
+    const category = categoryMap.get(categoryName);
+    if (!category) continue;
 
     const sku = row.sku || null;
     const data = {
@@ -40,15 +54,13 @@ export async function importProductsFromCSV(content: string) {
       categoryId: category.id,
       stock: toNumber(row.stock, 0),
     };
-
     if (sku) {
-      const previous = await prisma.product.findUnique({ where: { sku } });
       await prisma.product.upsert({
         where: { sku },
         update: data,
         create: data,
       });
-      if (previous) updated += 1;
+      if (existingSkuSet.has(sku)) updated += 1;
       else created += 1;
     } else {
       await prisma.product.create({ data });
